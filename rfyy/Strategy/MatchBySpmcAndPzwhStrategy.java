@@ -62,7 +62,7 @@ public class MatchBySpmcAndPzwhStrategy implements MatchStrategy {
                 continue;
             }
             // 根据spmc找到对应的采购单
-            List<Cgd> matchedCgds = DataFilterUtils.filterCgdsBySpmc(fp, remainingCgds);
+            List<Cgd> matchedCgds = DataFilterUtils.filterCgdsBySpmc(fp, remainingCgds, xsf);
             // 按pzwh分组
             Map<String, List<Cgd>> matchedPzwhCgds = matchedCgds.stream()
                     .collect(Collectors.groupingBy(Cgd::getPzwh));

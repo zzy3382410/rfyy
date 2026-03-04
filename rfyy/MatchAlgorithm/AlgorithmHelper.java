@@ -73,8 +73,8 @@ public class AlgorithmHelper {
             List<Cgd> finalMatchedCgds = new ArrayList<>();
             FpMx posFpmx = MatchUtils.getPositiveFpmx(fp.getFpmxList());
             FpMx negFpmx = MatchUtils.getNegativeFpmx(fp.getFpmxList());
-            List<Cgd> matchedSpmcPhCgds = DataFilterUtils.filterCgdsBySpmcAndPh(fp, remainingCgds, fp.getPhs());
-            List<Cgd> matchedNegSpmcCgds = DataFilterUtils.filterNegCgdsBySpmc(fp, remainingCgds);
+            List<Cgd> matchedSpmcPhCgds = DataFilterUtils.filterCgdsBySpmcAndPh(fp, remainingCgds, fp.getPhs(), xsf);
+            List<Cgd> matchedNegSpmcCgds = DataFilterUtils.filterNegCgdsBySpmc(fp, remainingCgds, xsf);
             // 分别匹配正负明细
             List<Cgd> posCgdList = this.yzyfMatchFpmx(posFpmx, matchedSpmcPhCgds, wc);
             List<Cgd> negCgdList = this.yzyfMatchFpmx(negFpmx, matchedNegSpmcCgds, wc);
