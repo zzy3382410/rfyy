@@ -18,7 +18,7 @@ public class RfyyConstant {
     /**
      * FORCE_MATCH 最大候选采购单数，超过直接放弃
      */
-    public static final Integer MAX_CANDIDATE_SIZE = 20;
+    public static final Integer MAX_CANDIDATE_SIZE = 100;
 
     /**
      *  匹配允许最大日期隔间
