@@ -33,7 +33,7 @@ public class MatchContext {
      * @param strategy 匹配策略
      * @param status   匹配状态
      */
-    public void addMatched(Fp fp, Cgd cgd, String strategy, String status) {
+    public void addMatched(Fp fp, Cgd cgd, String strategy, String status, String wcJe) {
         // 根据fpdm,fphm,sdphm,djbh判断结果集中是否已存在
         boolean exist = matchResults.stream().anyMatch(result -> result.getFpdm().equals(fp.getFpdm())
                 && result.getFphm().equals(fp.getFphm())
@@ -44,7 +44,11 @@ public class MatchContext {
                     fp.getFpdm(),
                     fp.getFphm(),
                     fp.getSdphm(),
+                    fp.getKprq(),
                     cgd.getDjbh(),
+                    fp.getJshj(),
+                    wcJe,
+                    fp.getSpsl(),
                     strategy,
                     status,
                     LocalDateTime.now(),

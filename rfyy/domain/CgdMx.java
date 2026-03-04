@@ -18,7 +18,7 @@ public class CgdMx extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
 
-    private Long id;
+    private String id;
 
     /** 机构名称 */
     @Excel(name = "机构名称")
@@ -33,16 +33,16 @@ public class CgdMx extends BaseEntity
     private String djbh;
 
     /** 部门名称 */
-    @Excel(name = "部门名称")
-    private String bmmc;
+    // @Excel(name = "部门名称")
+    // private String bmmc;
 
     /** 单位编号 */
-    @Excel(name = "单位编号")
-    private String dwbh;
+    // @Excel(name = "单位编号")
+    // private String dwbh;
 
     /** 原单位编号 */
-    @Excel(name = "原单位编号")
-    private String ydwbh;
+    // @Excel(name = "原单位编号")
+    // private String ydwbh;
 
     /** 供应商名称 */
     @Excel(name = "供应商名称")
@@ -57,8 +57,8 @@ public class CgdMx extends BaseEntity
     private String spbm;
 
     /** 原编号 */
-    @Excel(name = "原编号")
-    private String ybh;
+    // @Excel(name = "原编号")
+    // private String ybh;
 
     /** 商品名称 */
     @Excel(name = "商品名称")
@@ -109,12 +109,12 @@ public class CgdMx extends BaseEntity
     private String sl;
 
     /** 商品资料进项税率 */
-    @Excel(name = "商品资料进项税率")
-    private String spzljxsl;
-
-    /** 商品资料销项税率 */
-    @Excel(name = "商品资料销项税率")
-    private String spzlxxsl;
+    // @Excel(name = "商品资料进项税率")
+    // private String spzljxsl;
+    //
+    // /** 商品资料销项税率 */
+    // @Excel(name = "商品资料销项税率")
+    // private String spzlxxsl;
 
     /** 操作员 */
     @Excel(name = "操作员")
@@ -145,28 +145,28 @@ public class CgdMx extends BaseEntity
     private String scrq;
 
     /** 有效期至 */
-    @Excel(name = "有效期至")
-    private String yyqz;
+    // @Excel(name = "有效期至")
+    // private String yyqz;
 
     /** 商品id */
-    @Excel(name = "商品id")
-    private String spid;
+    // @Excel(name = "商品id")
+    // private String spid;
 
     /** 监管码 */
-    @Excel(name = "监管码")
-    private String jgm;
+    // @Excel(name = "监管码")
+    // private String jgm;
 
     /** 企业码 */
-    @Excel(name = "企业码")
-    private String qym;
+    // @Excel(name = "企业码")
+    // private String qym;
 
     /** 商品流水号 */
-    @Excel(name = "商品流水号")
-    private String splsh;
+    // @Excel(name = "商品流水号")
+    // private String splsh;
 
     /** 最后含税进价 */
-    @Excel(name = "最后含税进价")
-    private String zhhsjj;
+    // @Excel(name = "最后含税进价")
+    // private String zhhsjj;
 
 
     /** 厂牌 */
@@ -175,8 +175,11 @@ public class CgdMx extends BaseEntity
 
     private String month;
 
-    //命中标识
-    private String targetFlag;
+    //处理后商品名称
+    private String handledSpmc;
+
+    //处理后商品规格
+    private String handledSpgg;
 
     /**
      * 发票代码

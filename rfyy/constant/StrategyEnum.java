@@ -7,12 +7,32 @@ package com.current.rfyy.constant;
  **/
 public enum StrategyEnum {
 
-    SPMC_PH_JE_SL("SPMC_PH_JE_SL", "MatchBySpmcAndPhAndJeAndSl"),
-    SPMC_JE_SL_RQ("SPMC_JE_SL_RQ", "MatchBySpmcAndJeAndSlAndRq"),
-    SPMC_JE_SL("SPMC_JE_SL", "MatchBySpmcAndJeAndSl"),
-    PH_JE_SL("PH_JE_SL", "MatchByPhAndJeAndSl"),
-    PH_RQ_JE_SL("PH_RQ_JE_SL", "MatchByPhAndRqAndJeAndSl"),
-    FPMX_CGDMX_SPMC_JE_SL("FPMX_CGDMX_SPMC_JE_SL", "MathchByFpMxAndCgdMx");
+    SPMC_PH("SPMC_PH", "MatchBySpmcAndPhStrategy"),
+    YZYF_SPMC_PH("YZYF_SPMC_PH", "YzyfMatchBySpmcAndPhStrategy"),
+    SPMC_MX("SPMC_MX", "MatchBySpmcAndMxStrategy"),
+    SPMC("SPMC", "MatchBySpmcStrategy"),
+    CGD_SPMC("CGD_SPMC", "MatchFpBySpmcStrategy"),
+    CGD_SPMC_PH("CGD_SPMC", "MatchFpBySpmcAndPhStrategy"),
+    SPMC_PZWH("SPMC_PZWH", "MatchBySpmcAndPzwhStrategy"),
+    PH("PH", "MatchByPhStrategy"),
+    FORCE_MATCH_SPMC_PH("FORCE_MATCH_SPMC_PH", "ForceMatchBySpmcAndPhStrategy"),
+    FORCE_MATCH_SPMC_PH_RQ("FORCE_MATCH_SPMC_PH_RQ", "ForceMatchBySpmcAndPhAndRqStrategy"),
+    FORCE_MATCH_SPMC_JE("FORCE_MATCH_SPMC_JE", "ForceMatchBySpmcAndJe"),
+    FORCE_MATCH_JE("FORCE_MATCH_JE", "ForceMatchByJe"),
+
+
+
+
+    //尾差
+    SPMC_PH_JE_SL_WC("SPMC_PH_JE_SL_WC", "MatchBySpmcAndPh"),
+    SPMC_PH_JE_SL_YZYF_FORCE("SPMC_PH_JE_SL_YZYF_FORCE", "MatchBySpmcAndPh"),
+    SPMC_PH_JE_SL_WC_FORCE("SPMC_PH_JE_SL_WC_FORCE", "MatchBySpmcAndPh"),
+
+    FPMX_CGDMX_SPMC_JE_SL("FPMX_CGDMX_SPMC_JE_SL", "MathchByFpMxAndCgdMx"),
+    PH_SPMC_RQ_GROUP("PH_SPMC_RQ_GROUP", "MatchByPhAndSpmcAndRqGroup");
+
+
+
 
 
     private final String strategy;

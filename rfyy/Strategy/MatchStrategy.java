@@ -1,5 +1,6 @@
 package com.current.rfyy.Strategy;
 
+import com.current.rfyy.constant.StrategyEnum;
 import com.current.rfyy.domain.XsfMatchData;
 
 /**
@@ -8,6 +9,8 @@ import com.current.rfyy.domain.XsfMatchData;
  * @Description: TODO 匹配策略
  **/
 public interface MatchStrategy {
+
+    StrategyEnum getType();
 
     /**
      * 执行匹配。

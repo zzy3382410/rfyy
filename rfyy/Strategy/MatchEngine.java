@@ -3,11 +3,10 @@ package com.current.rfyy.Strategy;
 import com.current.rfyy.constant.StrategyEnum;
 import com.current.rfyy.domain.XsfMatchData;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @Author: zzy
@@ -15,12 +14,8 @@ import java.util.Map;
  * @Description: TODO
  **/
 @Slf4j
+@Component
 public class MatchEngine {
-    /**
-     * 策略注册表
-     */
-    private final Map<StrategyEnum, MatchStrategy> strategyRegistry =
-            new EnumMap<>(StrategyEnum.class);
 
     /**
      * 策略执行顺序
@@ -28,32 +23,53 @@ public class MatchEngine {
     private final List<StrategyEnum> executionOrder = new ArrayList<>();
 
     /**
-     * 构造时完成注册
+     * 策略工厂
      */
-    public MatchEngine() {
+    private final StrategyFactory strategyFactory;
+
+    /**
+     * 构造函数
+     */
+    public MatchEngine(StrategyFactory strategyFactory) {
+        this.strategyFactory = strategyFactory;
         registerDefaults();
     }
+
 
     /**
      * 默认注册（你也可以改成 Spring 注入）
      * 后续你补策略只需要在这里加
      */
     private void registerDefaults() {
-        register(StrategyEnum.SPMC_PH_JE_SL, new MatchBySpmcAndPhAndJeAndSl());
-        register(StrategyEnum.SPMC_JE_SL_RQ, new MatchBySpmcAndJeAndSlAndRq());
-        register(StrategyEnum.SPMC_JE_SL, new MatchBySpmcAndJeAndSl());
-        register(StrategyEnum.PH_JE_SL, new MatchByPhAndJeAndSl());
-        register(StrategyEnum.PH_RQ_JE_SL, new MatchByPhAndRqAndJeAndSl());
-        register(StrategyEnum.FPMX_CGDMX_SPMC_JE_SL, new MathchByFpMxAndCgdMx());
+        register(StrategyEnum.SPMC_PH);
+        register(StrategyEnum.FORCE_MATCH_SPMC_PH);
+        register(StrategyEnum.FORCE_MATCH_SPMC_PH_RQ);
+        register(StrategyEnum.YZYF_SPMC_PH);
+        // 1：1
+        register(StrategyEnum.SPMC_MX);
+        register(StrategyEnum.SPMC_PZWH);
+        register(StrategyEnum.SPMC);
+        // register(StrategyEnum.PH);
+        register(StrategyEnum.FORCE_MATCH_SPMC_JE);
+        //cgd -> fp
+        register(StrategyEnum.CGD_SPMC_PH);
+        register(StrategyEnum.CGD_SPMC);
+        register(StrategyEnum.FORCE_MATCH_JE);
+
+
+        // register(StrategyEnum.FPMX_CGDMX_SPMC_JE_SL, new MathchByFpMxAndCgdMx());
+        // register(StrategyEnum.PH_SPMC_RQ_GROUP, new MatchByPhAndSpmcAndRqGroup());
     }
 
     /**
      * 注册策略
      */
-    public void register(StrategyEnum type, MatchStrategy strategy) {
-        strategyRegistry.put(type, strategy);
+    public void register(StrategyEnum type) {
         executionOrder.add(type);
     }
+
+
+
 
     /**
      * 执行匹配（单企业）
@@ -66,8 +82,7 @@ public class MatchEngine {
         xsf.initRemaining();
 
         for (StrategyEnum type : executionOrder) {
-
-            MatchStrategy strategy = strategyRegistry.get(type);
+            MatchStrategy strategy = strategyFactory.get(type);
             if (strategy == null) {
                 continue;
             }

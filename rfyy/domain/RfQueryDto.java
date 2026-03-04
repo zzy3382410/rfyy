@@ -20,10 +20,10 @@ public class RfQueryDto {
     /** 销方识别号 */
     private String xfsbh;
 
-    /** 日期期起 */
+    /** 日期期起 yyyy-mm-dd */
     private String qq;
 
-    /** 日期期止 */
+    /** 日期期止 yyyy-mm-dd */
     private String qz;
 
 

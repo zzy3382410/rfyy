@@ -15,5 +15,6 @@ public class MatchStatus {
 
     //手动匹配
     public static final String MANUAL_MATCHED = "2";
-    
+
+
 }

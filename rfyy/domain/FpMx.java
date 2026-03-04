@@ -5,6 +5,8 @@ import com.current.common.annotation.Excel;
 import com.current.common.core.domain.BaseEntity;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 
 /**
  * @ClassName: JxQlfp
@@ -113,6 +115,15 @@ public class FpMx extends BaseEntity {
     private String nsrsbh;
 
     private String gjbq;
+
+    private BigDecimal jshjBd;
+
+    public BigDecimal getJshjBd() {
+        if (jshjBd == null) {
+            jshjBd = new BigDecimal(jshj);
+        }
+        return jshjBd;
+    }
 
 
 }

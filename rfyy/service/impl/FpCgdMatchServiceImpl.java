@@ -1,8 +1,10 @@
 package com.current.rfyy.service.impl;
 
-import com.current.rfyy.Strategy.*;
+import com.current.rfyy.Strategy.MatchContext;
+import com.current.rfyy.Strategy.MatchEngine;
 import com.current.rfyy.batch.BatchConfig;
 import com.current.rfyy.batch.BatchProcessor;
+import com.current.rfyy.constant.RfyyConstant;
 import com.current.rfyy.domain.*;
 import com.current.rfyy.mapper.CgdMapper;
 import com.current.rfyy.mapper.FpCgdMatchMapper;
@@ -17,6 +19,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -35,30 +38,26 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
     private final FpCgdMatchMapper fpCgdMatchMapper;
     private final FpMapper fpMapper;
     private final CgdMapper cgdMapper;
+    private final MatchEngine engine;
 
     @Override
     public void matchFpCgd(RfQueryDto queryDto) {
         // 获取所有销售方列表
-        List<String> xsfList = getAllXsfList(queryDto);
-        // 分批处理
-        processAllXsf(xsfList);
-    }
-
-    public void processAllXsf(List<String> xfmcList) {
-
-        // 可以动态配置，比如通过 application.yml
+        List<String> xfmcList = getAllXsfList(queryDto);
+        // 分批参数配置
         BatchConfig config = BatchConfig.builder()
                 .batchSize(100)              // 每批处理100企业
                 .threadCount(10)              // 10线程并行
                 // .maxInSize(200)              // 单次 SQL IN 不超过200
                 .maxRetry(0)                 // 错误重试 0 次
                 .build();
-
+        // 分批处理
         BatchProcessor<String> processor = new BatchProcessor<>(config, fpCgdMatchExecutor);
 
         processor.processInBatches(
+                queryDto,
                 xfmcList,
-                this::processBatch,   // 批处理逻辑（你要写的）
+                this::processBatch,
                 this::handleBatchError       // 批错误处理
         );
     }
@@ -68,34 +67,42 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
      *
      * @param xfmcBatch 企业批次
      */
-    public void processBatch(List<String> xfmcBatch) {
+    public void processBatch(List<String> xfmcBatch, RfQueryDto queryDto) {
 
         log.info("开始处理企业批次: {}", xfmcBatch);
 
         // 1. 批量取出所有数据（分片查询）
         List<Fp> fpList = executeInChunks(
                 xfmcBatch,
+                queryDto.getQq(),
+                queryDto.getQz(),
                 1000,
                 true,
-                fpMapper::selectFpListByXfmcs
+                chunk -> fpMapper.selectFpListByXfmcs(chunk, queryDto.getQq(), queryDto.getQz())
         );
         List<Cgd> cgdList = executeInChunks(
                 xfmcBatch,
+                queryDto.getQq(),
+                queryDto.getQz(),
                 1000,
                 true,
-                cgdMapper::selectCgdListByXfmcs
+                chunk -> cgdMapper.selectCgdListByXfmcs(chunk, queryDto.getQq(), queryDto.getQz())
         );
         List<FpMx> fpMxList = executeInChunks(
-                xfmcBatch,
+                fpList,
+                queryDto.getQq(),
+                queryDto.getQz(),
                 1000,
                 true,
-                fpMapper::selectFpMxListByXfmcs
+                fpMapper::selectFpMxListByFpList
         );
         List<CgdMx> cgdMxList = executeInChunks(
                 xfmcBatch,
+                queryDto.getQq(),
+                queryDto.getQz(),
                 1000,
                 true,
-                cgdMapper::selectCgdMxListByXfmcs
+                chunk -> cgdMapper.selectCgdMxListByXfmcs(chunk, queryDto.getQq(), queryDto.getQz())
         );
 
         // 2. 构建企业数据的索引 map
@@ -116,7 +123,6 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
             );
 
             // 执行匹配策略链
-            MatchEngine engine = new MatchEngine();
             MatchContext ctx = engine.match(xsf);
             allMatchResultList.addAll(ctx.getMatchResults());
         }
@@ -124,8 +130,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
         // 4. 写入数据库或输出结果
         saveBatchMatchResults(allMatchResultList);
 
-
-        log.info("批次处理完成，共 {} 企业", xfmcBatch.size());
+        log.info("批次处理完成，共 {} 企业,成功匹配{}条结果 ", xfmcBatch.size(), allMatchResultList.size());
     }
 
 
@@ -138,6 +143,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
     private List<String> getAllXsfList(RfQueryDto queryDto) {
         // 查询所有销售方列表
         List<RfXsfTotal> xsfTotalList = fpCgdMatchMapper.selectXfmcTotalList(queryDto);
+        // log.info("本次匹配数据详情：{}", xsfTotalList);
 
         // 过滤没有发票或者没有采购单的数据
         return xsfTotalList.stream()
@@ -152,7 +158,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
     /**
      * 分批查询列表
      */
-    public <T, R> List<R> executeInChunks(List<T> sourceList, int chunkSize, boolean parallel, Function<List<T>, List<R>> queryFunction) {
+    public <T, R> List<R> executeInChunks(List<T> sourceList, String qq, String qz, int chunkSize, boolean parallel, Function<List<T>, List<R>> queryFunction) {
         if (sourceList == null || sourceList.isEmpty()) return new ArrayList<>();
 
         List<List<T>> chunks = SplitUtils.split(sourceList, chunkSize);
@@ -177,6 +183,9 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
     private XsfMatchData buildXsfData(String xfmc, List<Fp> fpList, List<Cgd> cgdList, List<FpMx> fpMxList, List<CgdMx> cgdMxList) {
         XsfMatchData xsf = new XsfMatchData();
         xsf.setXfmc(xfmc);
+        // 获取批号集合
+        Set<String> phset = new LinkedHashSet<>();
+        cgdMxList.forEach(cgdMx -> phset.add(cgdMx.getPh()));
         // sdphm_fpdm_fphm 做发票明细的索引
         Map<String, List<FpMx>> fpmxMap = fpMxList.stream()
                 .collect(Collectors.groupingBy(
@@ -187,27 +196,57 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
             String key = String.format("%s_%s_%s", fp.getSdphm(), fp.getFpdm(), fp.getFphm());
             List<FpMx> fpMxs = fpmxMap.getOrDefault(key, Collections.emptyList());
             fp.setFpmxList(fpMxs);
+            // 判断发票明细是否是一正一负
+            if (MatchUtils.isOnePositiveOneNegative(fpMxs)) {
+                fp.setSfyzyf("1");
+            }
 
             if (fpMxs.isEmpty()) {
                 continue;
             }
             // 商品名称处理
             Set<String> spmcSet = new LinkedHashSet<>();
-            Set<String> checkSpmcSet = new LinkedHashSet<>();
-            fpMxs.forEach(fpMx -> {
+            Set<String> handledSpmcSet = new LinkedHashSet<>();
+            Set<String> ggxhSet = new LinkedHashSet<>();
+            Set<String> handledGgxhSet = new LinkedHashSet<>();
+            // 商品数量
+            int spsl = 0;
+            for (FpMx fpMx : fpMxs) {
+                // 安全地解析数量字段，处理可能的小数情况
+                String slStr = StringUtils.isNotEmpty(fpMx.getSl()) ? fpMx.getSl() : "0";
+                try {
+                    // 先转为BigDecimal再转为int，避免直接parseInt的NumberFormatException
+                    BigDecimal slDecimal = new BigDecimal(slStr);
+                    spsl += slDecimal.intValue();
+                } catch (NumberFormatException e) {
+                    log.warn("发票明细商品数量解析失败，sl值: {}, 使用默认值0", slStr);
+                    spsl += 0;
+                }
                 String hwlwmc = fpMx.getHwhyslwmc();
                 if (StringUtils.isNotEmpty(hwlwmc)) {
                     spmcSet.add(hwlwmc);
                 }
                 // 清洗后商品名
-                String handled = MatchUtils.handleSpmc(hwlwmc);
-                if (handled != null && !handled.isEmpty()) {
-                    checkSpmcSet.add(handled);
+                String handledSpmc = MatchUtils.handleSpmc(hwlwmc);
+                if (handledSpmc != null && !handledSpmc.isEmpty()) {
+                    handledSpmcSet.add(handledSpmc);
+                }
+                // 清洗后规格
+                ggxhSet.add(fpMx.getGgxh());
+                String handledGgxh = MatchUtils.handleGgxh(fpMx.getGgxh());
+                if (handledGgxh != null && !handledGgxh.isEmpty()) {
+                    handledGgxhSet.add(handledGgxh);
                 }
 
-            });
-            fp.setOriSpmc(String.join("_", spmcSet));
-            fp.setCheckSpmc(String.join("_", checkSpmcSet));
+            }
+            fp.setSpsl(spsl);
+            fp.setSpmc(String.join("_", spmcSet));
+            fp.setHandledSpmc(String.join("_", handledSpmcSet));
+            fp.setGgxh(String.join("_", ggxhSet));
+            fp.setHandledGgxh(String.join("_", handledGgxhSet));
+            // 发票批号
+            Set<String> fpPhs = MatchUtils.matchPhBycgdPhsAndFpbz(phset, fp.getBz());
+            fp.setPhs(fpPhs);
         }
 
         // djbh 采购单明细索引
@@ -215,16 +254,45 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
                 .collect(Collectors.groupingBy(
                         CgdMx::getDjbh
                 ));
+        Set<String> pzwhSet = new LinkedHashSet<>();
         for (Cgd cgd : cgdList) {
             List<CgdMx> cgdMxs = cgdMxMap.getOrDefault(cgd.getDjbh(), Collections.emptyList());
             cgd.setCgdMxList(cgdMxs);
             if (!CollectionUtils.isEmpty(cgdMxs)) {
                 cgd.setRq(cgdMxs.get(0).getRq());
             }
+            boolean sfWcd = false;
+            boolean sfTbd = false;
+            for (CgdMx cgdMx : cgdMxs) {
+                String pzwh = cgdMx.getPzwh();
+                if (StringUtils.isNotEmpty(pzwh)) {
+                    pzwhSet.add(pzwh);
+                }
+                // 商品名称处理
+                if (StringUtils.isNotEmpty(cgdMx.getSpmc())) {
+                    String handledSpmc = MatchUtils.handleSpmc(cgdMx.getSpmc());
+                    if (handledSpmc != null && !handledSpmc.isEmpty()) {
+                        cgdMx.setHandledSpmc(handledSpmc);
+                    }
+                }
+                // 商品规格处理
+                if (StringUtils.isNotEmpty(cgdMx.getSpgg())) {
+                    String handledSpgg = MatchUtils.handleSpmc(cgdMx.getSpgg());
+                    if (handledSpgg != null && !handledSpgg.isEmpty()) {
+                        cgdMx.setHandledSpgg(handledSpgg);
+                    }
+                }
+                // 是否小金额尾差单
+                // boolean b = StringUtils.isBlank(cgdMx.getPh()) && "采购退补价执行".equals(cgdMx.getZy());
+                BigDecimal je = cgd.getHjjeBd().abs();
+                sfWcd = je.compareTo(RfyyConstant.AMOUNT_DIFF) <= 0 && "采购退补价执行".equals(cgdMx.getZy());
+                // 是否退补单
+                sfTbd = cgd.getHjjeBd().compareTo(BigDecimal.ZERO) <= 0 && "采购退补价执行".equals(cgdMx.getZy());
+            }
+            cgd.setSfWcd(sfWcd);
+            cgd.setSfTbd(sfTbd);
+            cgd.setPzwh(String.join("_", pzwhSet));
         }
-        // 获取批号集合
-        Set<String> phset = new LinkedHashSet<>();
-        cgdMxList.forEach(cgdMx -> phset.add(cgdMx.getPh()));
         xsf.setFpList(fpList);
         xsf.setCgdList(cgdList);
         xsf.setPhs(phset);
@@ -245,7 +313,23 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
 
         for (List<MatchResult> part : parts) {
             fpCgdMatchMapper.batchInsert(part);
+            // // todo 成本发票池打标,将匹配结果的djbh拼接
+            // Map<String, String> cbMap = new HashMap<>();
+            // Map<String, List<MatchResult>> fpMap = part.stream().collect(Collectors.groupingBy(MatchResult::getFpKey));
+            // for (String key : fpMap.keySet()) {
+            //     List<MatchResult> matchResultList = fpMap.get(key);
+            //     if (!CollectionUtils.isEmpty(matchResultList)){
+            //         String djbh = matchResultList.stream()
+            //                 .map(MatchResult::getDjbh)
+            //                 .filter(Objects::nonNull)
+            //                 .collect(Collectors.joining(","));
+            //         cbMap.put(key, djbh);
+            //     }
+            // }
+            // // 入库
         }
+
+
     }
 
 
@@ -270,7 +354,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
     //     // 初始化所有匹配策略
     //     List<MatchStrategy> strategies = List.of(
     //             new MatchBySpmcAndPhAndJeAndSl(),
-    //             new MatchBySpmcAndJeAndSlAndRq(),
+    //             new MatchBySpmcAndMxJeAndMxSl(),
     //             new MatchBySpmcAndJeAndSl()
     //     );
     //     MatchContext ctx = new MatchContext();

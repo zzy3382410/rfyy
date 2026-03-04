@@ -32,9 +32,29 @@ public class MatchResult {
     private String sdphm;
 
     /**
+     * 数电发票号码
+     */
+    private String kprq;
+
+    /**
      * 采购单编号
      */
     private String djbh;
+
+    /**
+     * 发票金额
+     */
+    private String fpje;
+
+    /**
+     * 尾差金额
+     */
+    private String wcJe;
+
+    /**
+     * 发票商品数量
+     */
+    private int fpsl;
 
     /**
      * 命中策略
@@ -57,14 +77,22 @@ public class MatchResult {
     private String matchBy;
 
 
-    public MatchResult(String fpdm, String fphm, String sdphm, String djbh, String strategy, String status, LocalDateTime matchTime, String matchBy) {
+    public MatchResult(String fpdm, String fphm, String sdphm, String kprq, String djbh, String fpje, String wcJe, int fpsl, String strategy, String status, LocalDateTime matchTime, String matchBy) {
         this.fpdm = fpdm;
         this.fphm = fphm;
         this.sdphm = sdphm;
+        this.kprq = kprq;
+        this.fpje = fpje;
+        this.wcJe = wcJe;
+        this.fpsl = fpsl;
         this.djbh = djbh;
         this.strategy = strategy;
         this.status = status;
         this.matchTime = matchTime;
         this.matchBy = matchBy;
+    }
+
+    public String getFpKey() {
+        return this.fpdm + this.fphm + this.sdphm;
     }
 }

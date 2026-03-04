@@ -1,5 +1,6 @@
 package com.current.rfyy.batch;
 
+import com.current.rfyy.domain.RfQueryDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -7,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -26,8 +28,9 @@ public class BatchProcessor<T> {
     }
 
     public void processInBatches(
+            RfQueryDto queryDto,
             List<T> items,
-            Consumer<List<T>> batchConsumer,
+            BiConsumer<List<T>, RfQueryDto> batchConsumer,
             Consumer<Throwable> errorConsumer
     ) {
 
@@ -41,7 +44,7 @@ public class BatchProcessor<T> {
                 try {
                     semaphore.acquire(); // 限流
 
-                    runWithRetry(() -> batchConsumer.accept(batch));
+                    runWithRetry(() -> batchConsumer.accept(batch, queryDto));
 
                 } catch (Throwable e) {
                     errorConsumer.accept(e);

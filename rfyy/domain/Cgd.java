@@ -7,6 +7,7 @@ import com.current.rfyy.constant.MatchStatus;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -19,8 +20,6 @@ import java.util.List;
 public class Cgd extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
-
-    private Long id;
 
     @Excel(name = "机构名称")
     private String jgmc;
@@ -35,6 +34,9 @@ public class Cgd extends BaseEntity {
     @Excel(name = "单据明细数量")
     private int cgdMxsl;
 
+    //批准文号
+    private String pzwh;
+
     //日期
     private String rq;
 
@@ -46,6 +48,20 @@ public class Cgd extends BaseEntity {
 
     // 匹配结果 0：未匹配  1.自动匹配  2：手动匹配
     private String status;
+
+    //尾差单
+    private boolean sfWcd;
+    //退补单
+    private boolean sfTbd;
+
+    private BigDecimal hjjeBd;
+
+    public BigDecimal getHjjeBd() {
+        if (hjjeBd == null) {
+            hjjeBd = new BigDecimal(cgdHjje);
+        }
+        return hjjeBd;
+    }
 
     /**
      *匹配打标

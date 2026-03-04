@@ -6,7 +6,9 @@ import com.current.rfyy.constant.MatchStatus;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 全量发票池对象 jx_qlfp
@@ -171,23 +173,16 @@ public class Fp extends BaseEntity {
      */
     private List<FpMx> fpmxList;
 
-    private String bcwjm;
-
-    /**
-     * 勾选状态
-     */
-    private String gxzt;
-
-    /**
-     * 勾选属期
-     */
-    private String gxsq;
 
     // 原始商品名称
-    private String oriSpmc;
+    private String spmc;
 
     // 处理后商品名称
-    private String checkSpmc;
+    private String handledSpmc;
+
+    private String ggxh;
+    // 处理后规格型号
+    private String handledGgxh;
 
     // 发票上的商品数量
     private int spsl;
@@ -196,6 +191,23 @@ public class Fp extends BaseEntity {
 
     // 匹配结果 0：未匹配  1.自动匹配  2：手动匹配
     private String status;
+
+    // 是否一正一负发票
+    private String sfyzyf = "0";
+
+    private BigDecimal jshjBd;
+
+    /**
+     * 发票批号
+     */
+    private Set<String> phs;
+
+    public BigDecimal getJshjBd() {
+        if (jshjBd == null) {
+            jshjBd = new BigDecimal(this.jshj);
+        }
+        return jshjBd;
+    }
 
     /**
      * 匹配打标

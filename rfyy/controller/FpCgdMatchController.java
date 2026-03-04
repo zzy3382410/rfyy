@@ -22,13 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class FpCgdMatchController {
 
     private final FpCgdMatchService fpCgdMatchService;
+
     /**
      * 匹配发票和采购订单分析结果
      */
     @Anonymous
     @GetMapping(value = "/match")
     public AjaxResult match(RfQueryDto queryDto) {
-        log.info("开始匹配数据------->");
+        log.info("开始匹配数据------->参数：{}", queryDto);
+        // queryDto.setXfmc("正大天晴药业集团股份有限公司");
+        // queryDto.setQq("2025-09-01");
+        // queryDto.setQz("2026-01-31");
         fpCgdMatchService.matchFpCgd(queryDto);
         return AjaxResult.success();
     }
