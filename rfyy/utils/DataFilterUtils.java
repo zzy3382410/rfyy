@@ -3,10 +3,13 @@ package com.current.rfyy.utils;
 import com.current.rfyy.domain.Cgd;
 import com.current.rfyy.domain.CgdMx;
 import com.current.rfyy.domain.Fp;
+import com.current.rfyy.domain.XsfMatchData;
 import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -21,9 +24,17 @@ public class DataFilterUtils {
      * 根据商品名过滤采购单（for 循环，避免 stream 性能损耗）
      */
     public static List<Cgd> filterCgdsBySpmc(Fp fp, List<Cgd> cgds) {
+        return filterCgdsBySpmc(fp, cgds, null);
+    }
+
+    /**
+     * 根据商品名过滤采购单（优先使用 xfs 预建索引）
+     */
+    public static List<Cgd> filterCgdsBySpmc(Fp fp, List<Cgd> cgds, XsfMatchData xsf) {
+        List<Cgd> source = candidateBySpmcIndex(fp, cgds, xsf);
         List<Cgd> result = new ArrayList<>();
 
-        for (Cgd cgd : cgds) {
+        for (Cgd cgd : source) {
             boolean ok = true;
             for (CgdMx mx : cgd.getCgdMxList()) {
                 if (!MatchUtils.matchSpmc(fp.getHandledSpmc(), fp.getSpmc(), mx.getHandledSpmc())) {
@@ -82,9 +93,14 @@ public class DataFilterUtils {
      * 根据商品名过滤负数金额采购单（for 循环，避免 stream 性能损耗）
      */
     public static List<Cgd> filterNegCgdsBySpmc(Fp fp, List<Cgd> cgds) {
+        return filterNegCgdsBySpmc(fp, cgds, null);
+    }
+
+    public static List<Cgd> filterNegCgdsBySpmc(Fp fp, List<Cgd> cgds, XsfMatchData xsf) {
+        List<Cgd> source = candidateBySpmcIndex(fp, cgds, xsf);
         List<Cgd> result = new ArrayList<>();
 
-        for (Cgd cgd : cgds) {
+        for (Cgd cgd : source) {
             boolean ok = true;
             for (CgdMx mx : cgd.getCgdMxList()) {
                 if (!MatchUtils.matchSpmc(fp.getHandledSpmc(), fp.getSpmc(), mx.getHandledSpmc())
@@ -104,8 +120,13 @@ public class DataFilterUtils {
      * 根据商品名和批号过滤采购单（for 循环，避免 stream 性能损耗）
      */
     public static List<Cgd> filterCgdsBySpmcAndPh(Fp fp, List<Cgd> cgds, Set<String> fpphSet) {
+        return filterCgdsBySpmcAndPh(fp, cgds, fpphSet, null);
+    }
+
+    public static List<Cgd> filterCgdsBySpmcAndPh(Fp fp, List<Cgd> cgds, Set<String> fpphSet, XsfMatchData xsf) {
+        List<Cgd> source = candidateBySpmcAndPhIndex(fp, cgds, fpphSet, xsf);
         List<Cgd> result = new ArrayList<>();
-        for (Cgd cgd : cgds) {
+        for (Cgd cgd : source) {
             boolean ok = true;
             for (CgdMx mx : cgd.getCgdMxList()) {
                 // 匹配逻辑：名称包含关系 + 批号匹配 + 备注包含批号
@@ -151,8 +172,13 @@ public class DataFilterUtils {
      * 根据商品名过滤采购单 并且没有批号的
      */
     public static List<Cgd> filterCgdsBySpmcAndNoPh(Fp fp, List<Cgd> cgds) {
+        return filterCgdsBySpmcAndNoPh(fp, cgds, null);
+    }
+
+    public static List<Cgd> filterCgdsBySpmcAndNoPh(Fp fp, List<Cgd> cgds, XsfMatchData xsf) {
+        List<Cgd> source = candidateBySpmcIndex(fp, cgds, xsf);
         List<Cgd> result = new ArrayList<>();
-        for (Cgd cgd : cgds) {
+        for (Cgd cgd : source) {
             boolean ok = true;
             for (CgdMx mx : cgd.getCgdMxList()) {
                 if (StringUtils.isNotBlank(mx.getPh())) {
@@ -176,8 +202,13 @@ public class DataFilterUtils {
      * 根据商品名和批号获取正数采购单
      */
     public static List<Cgd> filterPosCgdsBySpmcAndPh(Fp fp, List<Cgd> cgds, Set<String> fpphSet) {
+        return filterPosCgdsBySpmcAndPh(fp, cgds, fpphSet, null);
+    }
+
+    public static List<Cgd> filterPosCgdsBySpmcAndPh(Fp fp, List<Cgd> cgds, Set<String> fpphSet, XsfMatchData xsf) {
+        List<Cgd> source = candidateBySpmcAndPhIndex(fp, cgds, fpphSet, xsf);
         List<Cgd> result = new ArrayList<>();
-        for (Cgd cgd : cgds) {
+        for (Cgd cgd : source) {
             boolean ok = true;
             for (CgdMx mx : cgd.getCgdMxList()) {
                 boolean tailDiffCgd = WcMatchHelper.isTailDiffCgd(cgd);
@@ -196,5 +227,83 @@ public class DataFilterUtils {
             }
         }
         return result;
+    }
+
+    private static List<Cgd> candidateBySpmcAndPhIndex(Fp fp, List<Cgd> cgds, Set<String> fpphSet, XsfMatchData xsf) {
+        if (xsf == null || fpphSet == null || fpphSet.isEmpty()) {
+            return cgds;
+        }
+
+        Set<Cgd> phCandidates = new LinkedHashSet<>();
+        for (String ph : fpphSet) {
+            phCandidates.addAll(xsf.getCgdByPh(ph));
+        }
+        if (phCandidates.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Cgd> spmcCandidates = new LinkedHashSet<>();
+        for (String token : splitTokens(fp.getHandledSpmc())) {
+            spmcCandidates.addAll(xsf.getCgdByHandledSpmcFuzzy(token));
+        }
+        for (String token : splitTokens(fp.getSpmc())) {
+            spmcCandidates.addAll(xsf.getCgdBySpmcFuzzy(token));
+        }
+
+        if (!spmcCandidates.isEmpty()) {
+            phCandidates.retainAll(spmcCandidates);
+        }
+
+        if (cgds == null || cgds.isEmpty()) {
+            return new ArrayList<>(phCandidates);
+        }
+        if (xsf.isRemainingScope(cgds)) {
+            return new ArrayList<>(phCandidates);
+        }
+
+        Set<Cgd> scopeSet = new HashSet<>(cgds);
+        phCandidates.retainAll(scopeSet);
+        return new ArrayList<>(phCandidates);
+    }
+
+    private static List<Cgd> candidateBySpmcIndex(Fp fp, List<Cgd> cgds, XsfMatchData xsf) {
+        if (xsf == null) {
+            return cgds;
+        }
+
+        Set<Cgd> candidates = new LinkedHashSet<>();
+        for (String token : splitTokens(fp.getHandledSpmc())) {
+            candidates.addAll(xsf.getCgdByHandledSpmcFuzzy(token));
+        }
+        for (String token : splitTokens(fp.getSpmc())) {
+            candidates.addAll(xsf.getCgdBySpmcFuzzy(token));
+        }
+        if (candidates.isEmpty()) {
+            return cgds;
+        }
+
+        if (cgds == null || cgds.isEmpty()) {
+            return new ArrayList<>(candidates);
+        }
+        if (xsf.isRemainingScope(cgds)) {
+            return new ArrayList<>(candidates);
+        }
+        Set<Cgd> scopeSet = new HashSet<>(cgds);
+        candidates.retainAll(scopeSet);
+        return new ArrayList<>(candidates);
+    }
+
+    private static List<String> splitTokens(String value) {
+        if (StringUtils.isBlank(value)) {
+            return List.of();
+        }
+        String[] split = value.split("_");
+        List<String> tokens = new ArrayList<>(split.length);
+        for (String item : split) {
+            if (StringUtils.isNotBlank(item)) {
+                tokens.add(item.trim());
+            }
+        }
+        return tokens;
     }
 }
