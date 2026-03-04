@@ -56,7 +56,7 @@ public class MatchUtils {
         Set<String> matches = new LinkedHashSet<>();
         if (StringUtils.isNotEmpty(fpbz)) {
             // 正则匹配字母数字和特殊符号组合
-            Matcher matcher = BATCH_TOKEN_PATTERN.matcher(fpbz);
+            Matcher matcher = Pattern.compile("[\\w&+-]+").matcher(fpbz);
             while (matcher.find()) {
                 String candidate = matcher.group();
                 if (cgdPhs.contains(candidate)) matches.add(candidate);
@@ -64,8 +64,6 @@ public class MatchUtils {
         }
         return matches;
     }
-
-    private static final Pattern BATCH_TOKEN_PATTERN = Pattern.compile("[\\w&+-]+");
 
     /**
      * 匹配商品名称
@@ -431,7 +429,6 @@ public class MatchUtils {
 
                 // 从剩余池中移除，防止被后续策略或循环重复处理
                 cgdIterator.remove();
-                xsf.removeCgdFromIndexes(cgd);
             }
         }
         // 标记发票
@@ -492,7 +489,6 @@ public class MatchUtils {
 
                 // 从剩余池中移除，防止被后续策略或循环重复处理
                 cgdIterator.remove();
-                xsf.removeCgdFromIndexes(cgd);
             }
         }
         // 标记发票
@@ -543,8 +539,6 @@ public class MatchUtils {
         }
         // 标记采购单
         cgd.markMatched(matchStatus);
-        xsf.getRemainingCgd().remove(cgd);
-        xsf.removeCgdFromIndexes(cgd);
     }
 
 

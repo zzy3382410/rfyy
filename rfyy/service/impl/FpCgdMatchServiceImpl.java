@@ -77,7 +77,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
                 queryDto.getQq(),
                 queryDto.getQz(),
                 1000,
-                false,
+                true,
                 chunk -> fpMapper.selectFpListByXfmcs(chunk, queryDto.getQq(), queryDto.getQz())
         );
         List<Cgd> cgdList = executeInChunks(
@@ -85,7 +85,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
                 queryDto.getQq(),
                 queryDto.getQz(),
                 1000,
-                false,
+                true,
                 chunk -> cgdMapper.selectCgdListByXfmcs(chunk, queryDto.getQq(), queryDto.getQz())
         );
         List<FpMx> fpMxList = executeInChunks(
@@ -93,7 +93,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
                 queryDto.getQq(),
                 queryDto.getQz(),
                 1000,
-                false,
+                true,
                 fpMapper::selectFpMxListByFpList
         );
         List<CgdMx> cgdMxList = executeInChunks(
@@ -101,7 +101,7 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
                 queryDto.getQq(),
                 queryDto.getQz(),
                 1000,
-                false,
+                true,
                 chunk -> cgdMapper.selectCgdMxListByXfmcs(chunk, queryDto.getQq(), queryDto.getQz())
         );
 
@@ -189,11 +189,11 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
         // sdphm_fpdm_fphm 做发票明细的索引
         Map<String, List<FpMx>> fpmxMap = fpMxList.stream()
                 .collect(Collectors.groupingBy(
-                        fpmx -> buildFpKey(fpmx.getSdphm(), fpmx.getFpdm(), fpmx.getFphm())
+                        fpmx -> String.format("%s_%s_%s", fpmx.getSdphm(), fpmx.getFpdm(), fpmx.getFphm())
                 ));
 
         for (Fp fp : fpList) {
-            String key = buildFpKey(fp.getSdphm(), fp.getFpdm(), fp.getFphm());
+            String key = String.format("%s_%s_%s", fp.getSdphm(), fp.getFpdm(), fp.getFphm());
             List<FpMx> fpMxs = fpmxMap.getOrDefault(key, Collections.emptyList());
             fp.setFpmxList(fpMxs);
             // 判断发票明细是否是一正一负
@@ -254,8 +254,8 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
                 .collect(Collectors.groupingBy(
                         CgdMx::getDjbh
                 ));
+        Set<String> pzwhSet = new LinkedHashSet<>();
         for (Cgd cgd : cgdList) {
-            Set<String> pzwhSet = new LinkedHashSet<>();
             List<CgdMx> cgdMxs = cgdMxMap.getOrDefault(cgd.getDjbh(), Collections.emptyList());
             cgd.setCgdMxList(cgdMxs);
             if (!CollectionUtils.isEmpty(cgdMxs)) {
@@ -341,10 +341,6 @@ public class FpCgdMatchServiceImpl implements FpCgdMatchService {
     public void handleBatchError(Throwable e) {
         log.error("批处理失败，已自动熔断此批", e);
         // 可写入消息队列、报警、保存失败企业清单等
-    }
-
-    private String buildFpKey(String sdphm, String fpdm, String fphm) {
-        return sdphm + "_" + fpdm + "_" + fphm;
     }
 
     //

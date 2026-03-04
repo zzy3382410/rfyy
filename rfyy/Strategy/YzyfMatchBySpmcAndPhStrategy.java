@@ -83,7 +83,7 @@ public class YzyfMatchBySpmcAndPhStrategy implements MatchStrategy {
             }
             if (!matched) {
                 // 正大天晴匹配逻辑
-                List<Cgd> filterCgds = DataFilterUtils.filterPosCgdsBySpmcAndPh(fp, remainingCgds, allPhSet, xsf);
+                List<Cgd> filterCgds = DataFilterUtils.filterPosCgdsBySpmcAndPh(fp, remainingCgds, allPhSet);
                 BigDecimal wc = fp.getJshjBd().subtract(CalcUtils.calcCgdJe(filterCgds));
                 // if (CalcUtils.compareSl(fp.getSpsl(), CalcUtils.calcCgdSl(filterCgds))) {
                 List<Cgd> tailPool =

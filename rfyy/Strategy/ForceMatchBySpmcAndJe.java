@@ -45,10 +45,10 @@ public class ForceMatchBySpmcAndJe implements MatchStrategy {
             }
 
             // 按商品过滤
-            List<Cgd> candidates = DataFilterUtils.filterCgdsBySpmc(fp, xsf.getRemainingCgd(), xsf);
+            List<Cgd> candidates = DataFilterUtils.filterCgdsBySpmc(fp, xsf.getRemainingCgd());
             if (candidates.isEmpty() || candidates.size() > RfyyConstant.MAX_CANDIDATE_SIZE) {
                 // 按商品和批号过滤
-                candidates = DataFilterUtils.filterCgdsBySpmcAndPh(fp, xsf.getRemainingCgd(), fp.getPhs(), xsf);
+                candidates = DataFilterUtils.filterCgdsBySpmcAndPh(fp, xsf.getRemainingCgd(), fp.getPhs());
                 if (candidates.isEmpty() || candidates.size() > RfyyConstant.MAX_CANDIDATE_SIZE) {
                     continue;
                 }
