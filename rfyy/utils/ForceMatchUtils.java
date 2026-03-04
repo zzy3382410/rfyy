@@ -16,6 +16,21 @@ import java.util.stream.Collectors;
  **/
 public class ForceMatchUtils {
 
+    /**
+     * 小规模数据使用 DFS，剪枝效率更高
+     */
+    private static final int DFS_THRESHOLD = 30;
+
+    /**
+     * Meet-in-the-Middle 半边上限，避免 2^n 子集膨胀导致堆内存压力
+     */
+    private static final int MITM_HALF_LIMIT = 22;
+
+    /**
+     * 高并发保护：单次 DFS 最大搜索节点数，防止长尾请求拖垮系统
+     */
+    private static final long DFS_NODE_BUDGET = 2_000_000L;
+
     public static List<Cgd> findFirstMatchByAmount(BigDecimal fpJshj,
                                                    List<Cgd> cgds,
                                                    String wc) {
@@ -81,6 +96,110 @@ public class ForceMatchUtils {
                 Math.abs(a.amount)
         ));
 
+        if (nodes.size() <= DFS_THRESHOLD) {
+            return dfsMatch(nodes, targetCent, wcCent);
+        }
+
+        int mitmHalfSize = nodes.size() / 2;
+        if (mitmHalfSize <= MITM_HALF_LIMIT) {
+            return mitmMatch(nodes, targetCent, wcCent);
+        }
+
+        // 大规模数据回退 DFS（内存更稳），并通过预算保护吞吐
+        return dfsMatch(nodes, targetCent, wcCent);
+    }
+
+    private static List<Cgd> mitmMatch(List<Node> nodes,
+                                       long target,
+                                       long wc) {
+
+        int n = nodes.size();
+        int mid = n / 2;
+
+        List<Node> left = nodes.subList(0, mid);
+        List<Node> right = nodes.subList(mid, n);
+
+        List<Pair> leftSums = buildSubset(left);
+        leftSums.sort(Comparator.comparingLong(p -> p.sum));
+
+        long rightTotal = 1L << right.size();
+        for (long rightMask = 0; rightMask < rightTotal; rightMask++) {
+            long rightSum = subsetSum(right, rightMask);
+
+            long needMin = target - rightSum - wc;
+            long needMax = target - rightSum + wc;
+
+            int idx = lowerBound(leftSums, needMin);
+            while (idx < leftSums.size()) {
+                Pair leftPair = leftSums.get(idx);
+                if (leftPair.sum > needMax) {
+                    break;
+                }
+                return assembleResult(left, right, leftPair.mask, rightMask);
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private static List<Pair> buildSubset(List<Node> nodes) {
+        List<Pair> result = new ArrayList<>();
+        long total = 1L << nodes.size();
+        for (long mask = 0; mask < total; mask++) {
+            result.add(new Pair(subsetSum(nodes, mask), mask));
+        }
+        return result;
+    }
+
+    private static long subsetSum(List<Node> nodes, long mask) {
+        long sum = 0;
+        for (int i = 0; i < nodes.size(); i++) {
+            if ((mask & (1L << i)) != 0) {
+                sum += nodes.get(i).amount;
+            }
+        }
+        return sum;
+    }
+
+    private static List<Cgd> assembleResult(List<Node> left,
+                                            List<Node> right,
+                                            long leftMask,
+                                            long rightMask) {
+        List<Cgd> result = new ArrayList<>();
+
+        for (int i = 0; i < left.size(); i++) {
+            if ((leftMask & (1L << i)) != 0) {
+                result.add(left.get(i).cgd);
+            }
+        }
+
+        for (int i = 0; i < right.size(); i++) {
+            if ((rightMask & (1L << i)) != 0) {
+                result.add(right.get(i).cgd);
+            }
+        }
+
+        return result;
+    }
+
+    private static int lowerBound(List<Pair> list, long target) {
+        int l = 0;
+        int r = list.size();
+        while (l < r) {
+            int m = (l + r) >>> 1;
+            if (list.get(m).sum < target) {
+                l = m + 1;
+            } else {
+                r = m;
+            }
+        }
+        return l;
+    }
+
+    private static List<Cgd> dfsMatch(List<Node> nodes,
+                                      long target,
+                                      long wc) {
+
         int n = nodes.size();
 
         long[] remainingMax = new long[n];
@@ -105,16 +224,19 @@ public class ForceMatchUtils {
         List<Cgd> result = new ArrayList<>();
         List<Cgd> path = new ArrayList<>();
 
+        long[] visited = new long[]{0L};
+
         boolean found = dfs(
                 nodes,
                 0,
                 0L,
-                targetCent,
-                wcCent,
+                target,
+                wc,
                 remainingMax,
                 remainingMin,
                 path,
-                result
+                result,
+                visited
         );
 
         return found ? result : Collections.emptyList();
@@ -273,7 +395,12 @@ public class ForceMatchUtils {
                                long[] remainingMax,
                                long[] remainingMin,
                                List<Cgd> path,
-                               List<Cgd> result) {
+                               List<Cgd> result,
+                               long[] visited) {
+
+        if (++visited[0] > DFS_NODE_BUDGET) {
+            return false;
+        }
 
         long diff = Math.abs(current - target);
         if (diff <= wc) {
@@ -310,7 +437,8 @@ public class ForceMatchUtils {
                     remainingMax,
                     remainingMin,
                     path,
-                    result
+                    result,
+                    visited
             )) {
                 return true;
             }
@@ -323,6 +451,16 @@ public class ForceMatchUtils {
 
     private static long toCent(BigDecimal val) {
         return val.multiply(BigDecimal.valueOf(100)).longValue();
+    }
+
+    private static class Pair {
+        long sum;
+        long mask;
+
+        Pair(long sum, long mask) {
+            this.sum = sum;
+            this.mask = mask;
+        }
     }
 
     private static class Node {
