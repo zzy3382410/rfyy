@@ -69,7 +69,7 @@ public class MatchBySpmcAndPhStrategy implements MatchStrategy {
 
             // 只过滤一次
             List<Cgd> matchedCgds =
-                    DataFilterUtils.filterCgdsBySpmcAndPh(fp, remainingCgds, fp.getPhs());
+                    DataFilterUtils.filterCgdsBySpmcAndPh(fp, remainingCgds, fp.getPhs(), xsf);
 
             if (CollectionUtils.isEmpty(matchedCgds)) {
                 continue;
@@ -101,4 +101,3 @@ public class MatchBySpmcAndPhStrategy implements MatchStrategy {
 
 
 }
-

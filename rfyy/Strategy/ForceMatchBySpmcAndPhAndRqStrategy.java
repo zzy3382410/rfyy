@@ -62,7 +62,7 @@ public class ForceMatchBySpmcAndPhAndRqStrategy implements MatchStrategy {
 
             // 只过滤一次
             List<Cgd> filterCgds =
-                    DataFilterUtils.filterCgdsBySpmcAndPh(fp, remainingCgds, fp.getPhs());
+                    DataFilterUtils.filterCgdsBySpmcAndPh(fp, remainingCgds, fp.getPhs(), xsf);
 
             if (CollectionUtils.isEmpty(filterCgds)) {
                 continue;
