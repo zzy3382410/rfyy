@@ -22,6 +22,10 @@ public class ForceMatchFpUtils {
      * 自动切换阈值
      */
     private static final int DFS_THRESHOLD = 30;
+    /**
+     * Meet-in-the-Middle 的半边上限，防止 2^n 子集过大导致堆内存膨胀
+     */
+    private static final int MITM_HALF_LIMIT = 22;
 
     /* ==============================
             对外方法
@@ -63,6 +67,12 @@ public class ForceMatchFpUtils {
 
         if (nodes.size() <= DFS_THRESHOLD) {
             return dfsMatch(nodes, targetCent, wcCent);
+        }
+
+        int mitmHalfSize = nodes.size() / 2;
+        if (mitmHalfSize > MITM_HALF_LIMIT) {
+            // 大规模数据优先避免内存爆炸，退化到 DFS（时间更长但更稳）
+            return dfsMatch(nodes, targetCent, wcCent);
         } else {
             return mitmMatch(nodes, targetCent, wcCent);
         }
@@ -82,19 +92,22 @@ public class ForceMatchFpUtils {
         List<Node> left = nodes.subList(0, mid);
         List<Node> right = nodes.subList(mid, n);
 
-        // 左侧子集
-        List<Pair> leftSums = buildSubset(left);
+        // 左侧子集（仅保存 sum + mask，避免为每个子集创建 List）
+        List<Pair> leftSums = buildSubset(left, 0);
 
         // 排序（为二分准备）
         leftSums.sort(Comparator.comparingLong(p -> p.sum));
 
-        // 右侧枚举 + 二分
-        List<Pair> rightSums = buildSubset(right);
+        // 右侧按 mask 在线枚举 + 二分，避免额外构建右侧全部子集对象
+        int rightSize = right.size();
+        long rightTotal = 1L << rightSize;
 
-        for (Pair r : rightSums) {
+        for (long rightMask = 0; rightMask < rightTotal; rightMask++) {
 
-            long needMin = target - r.sum - wc;
-            long needMax = target - r.sum + wc;
+            long rightSum = subsetSum(right, rightMask);
+
+            long needMin = target - rightSum - wc;
+            long needMax = target - rightSum + wc;
 
             int idx = lowerBound(leftSums, needMin);
 
@@ -103,10 +116,7 @@ public class ForceMatchFpUtils {
 
                 if (l.sum > needMax) break;
 
-                List<Fp> result = new ArrayList<>();
-                result.addAll(l.list);
-                result.addAll(r.list);
-                return result;
+                return assembleResult(left, right, l.mask, rightMask);
 
                 // 如果要找最优解可以继续找
             }
@@ -115,25 +125,46 @@ public class ForceMatchFpUtils {
         return Collections.emptyList();
     }
 
-    private static List<Pair> buildSubset(List<Node> nodes) {
+    private static List<Pair> buildSubset(List<Node> nodes, int offset) {
 
         List<Pair> result = new ArrayList<>();
         int size = nodes.size();
-        int total = 1 << size;
+        long total = 1L << size;
 
-        for (int mask = 0; mask < total; mask++) {
+        for (long mask = 0; mask < total; mask++) {
 
-            long sum = 0;
-            List<Fp> subset = new ArrayList<>();
+            result.add(new Pair(subsetSum(nodes, mask), mask << offset));
+        }
 
-            for (int i = 0; i < size; i++) {
-                if ((mask & (1 << i)) != 0) {
-                    sum += nodes.get(i).amount;
-                    subset.add(nodes.get(i).fp);
-                }
+        return result;
+    }
+
+    private static long subsetSum(List<Node> nodes, long mask) {
+        long sum = 0;
+        for (int i = 0; i < nodes.size(); i++) {
+            if ((mask & (1L << i)) != 0) {
+                sum += nodes.get(i).amount;
             }
+        }
+        return sum;
+    }
 
-            result.add(new Pair(sum, subset));
+    private static List<Fp> assembleResult(List<Node> left,
+                                           List<Node> right,
+                                           long leftMask,
+                                           long rightMask) {
+        List<Fp> result = new ArrayList<>();
+
+        for (int i = 0; i < left.size(); i++) {
+            if ((leftMask & (1L << i)) != 0) {
+                result.add(left.get(i).fp);
+            }
+        }
+
+        for (int i = 0; i < right.size(); i++) {
+            if ((rightMask & (1L << i)) != 0) {
+                result.add(right.get(i).fp);
+            }
         }
 
         return result;
@@ -334,11 +365,11 @@ public class ForceMatchFpUtils {
 
     private static class Pair {
         long sum;
-        List<Fp> list;
+        long mask;
 
-        Pair(long sum, List<Fp> list) {
+        Pair(long sum, long mask) {
             this.sum = sum;
-            this.list = list;
+            this.mask = mask;
         }
     }
 
@@ -356,4 +387,3 @@ public class ForceMatchFpUtils {
         }
     }
 }
-
