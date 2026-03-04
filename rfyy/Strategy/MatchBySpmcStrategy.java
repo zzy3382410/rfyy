@@ -70,7 +70,7 @@ public class MatchBySpmcStrategy implements MatchStrategy {
                 continue;
             }
             // 商品名称处理
-            List<Cgd> matchedCgds = DataFilterUtils.filterCgdsBySpmc(fp, remainingCgds);
+            List<Cgd> matchedCgds = DataFilterUtils.filterCgdsBySpmc(fp, remainingCgds, xsf);
             if (CollectionUtils.isEmpty(matchedCgds)) {
                 continue;
             }
