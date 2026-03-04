@@ -153,31 +153,27 @@ public class ForceMatchUtils {
                 .collect(Collectors.toList());
 
         // 3️⃣ 在组层面做匹配
-        List<List<GroupNode>> allSolutions = new ArrayList<>();
+        SearchState state = new SearchState();
 
-        dfs(
+        dfsBest(
                 groupNodes,
                 0,
                 BigDecimal.ZERO,
                 target,
                 wc.abs(),
                 new ArrayList<>(),
-                allSolutions
+                state,
+                null,
+                null
         );
 
-        if (allSolutions.isEmpty()) {
+        if (state.bestPath.isEmpty()) {
             return Collections.emptyList();
         }
 
-        // 4️⃣ 选“日期跨度最小”的组合
-        List<GroupNode> best =
-                allSolutions.stream()
-                        .min(Comparator.comparingLong(ForceMatchUtils::dateSpan))
-                        .orElse(Collections.emptyList());
-
         // 5️⃣ 展开为单据
         List<Cgd> result = new ArrayList<>();
-        for (GroupNode node : best) {
+        for (GroupNode node : state.bestPath) {
             result.addAll(node.cgds);
         }
 
@@ -187,18 +183,24 @@ public class ForceMatchUtils {
     /**
      * DFS 搜索所有组组合
      */
-    private static void dfs(List<GroupNode> groups,
-                            int index,
-                            BigDecimal current,
-                            BigDecimal target,
-                            BigDecimal wc,
-                            List<GroupNode> path,
-                            List<List<GroupNode>> solutions) {
+    private static void dfsBest(List<GroupNode> groups,
+                                int index,
+                                BigDecimal current,
+                                BigDecimal target,
+                                BigDecimal wc,
+                                List<GroupNode> path,
+                                SearchState state,
+                                LocalDate minDate,
+                                LocalDate maxDate) {
 
         BigDecimal diff = current.subtract(target).abs();
 
         if (diff.compareTo(wc) <= 0) {
-            solutions.add(new ArrayList<>(path));
+            long span = calcSpan(minDate, maxDate);
+            if (span < state.bestSpan) {
+                state.bestSpan = span;
+                state.bestPath = new ArrayList<>(path);
+            }
             return;
         }
 
@@ -212,38 +214,44 @@ public class ForceMatchUtils {
 
             path.add(node);
 
-            dfs(
+            LocalDate nextMin = minDate;
+            LocalDate nextMax = maxDate;
+            if (node.date != null) {
+                if (nextMin == null || node.date.isBefore(nextMin)) {
+                    nextMin = node.date;
+                }
+                if (nextMax == null || node.date.isAfter(nextMax)) {
+                    nextMax = node.date;
+                }
+            }
+
+            long currentSpan = calcSpan(nextMin, nextMax);
+            if (currentSpan > state.bestSpan) {
+                path.remove(path.size() - 1);
+                continue;
+            }
+
+            dfsBest(
                     groups,
                     i + 1,
                     current.add(node.total),
                     target,
                     wc,
                     path,
-                    solutions
+                    state,
+                    nextMin,
+                    nextMax
             );
 
             path.remove(path.size() - 1);
         }
     }
 
-    /**
-     * 计算日期跨度（天数）
-     */
-    private static long dateSpan(List<GroupNode> nodes) {
-
-        if (nodes.size() <= 1) {
+    private static long calcSpan(LocalDate minDate, LocalDate maxDate) {
+        if (minDate == null || maxDate == null) {
             return 0;
         }
-
-        List<LocalDate> dates = nodes.stream()
-                .map(n -> LocalDate.parse(n.rq))
-                .sorted()
-                .collect(Collectors.toList());
-
-        return ChronoUnit.DAYS.between(
-                dates.get(0),
-                dates.get(dates.size() - 1)
-        );
+        return ChronoUnit.DAYS.between(minDate, maxDate);
     }
 
     /**
@@ -254,6 +262,7 @@ public class ForceMatchUtils {
         String rq;
         List<Cgd> cgds;
         BigDecimal total;
+        LocalDate date;
 
         GroupNode(String rq,
                   List<Cgd> cgds,
@@ -261,7 +270,15 @@ public class ForceMatchUtils {
             this.rq = rq;
             this.cgds = cgds;
             this.total = total;
+            if (rq != null && !rq.isBlank()) {
+                this.date = LocalDate.parse(rq);
+            }
         }
+    }
+
+    private static class SearchState {
+        long bestSpan = Long.MAX_VALUE;
+        List<GroupNode> bestPath = Collections.emptyList();
     }
 
 

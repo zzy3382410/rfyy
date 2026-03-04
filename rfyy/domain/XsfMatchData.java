@@ -46,6 +46,7 @@ public class XsfMatchData {
     private List<Fp> remainingFp = new ArrayList<>();
     private List<Cgd> remainingCgd = new ArrayList<>();
     private final Set<Cgd> remainingCgdSet = new LinkedHashSet<>();
+    private final Map<String, Cgd> remainingCgdByDjbh = new HashMap<>();
 
     /**
      * 采购单候选索引（一次构建，全策略复用）
@@ -64,6 +65,7 @@ public class XsfMatchData {
         remainingFp.clear();
         remainingCgd.clear();
         remainingCgdSet.clear();
+        remainingCgdByDjbh.clear();
         fuzzyCacheBySpmc.clear();
         fuzzyCacheByHandledSpmc.clear();
 
@@ -76,6 +78,9 @@ public class XsfMatchData {
             if (!cgd.isMatched()) {
                 remainingCgd.add(cgd);
                 remainingCgdSet.add(cgd);
+                if (normalize(cgd.getDjbh()) != null) {
+                    remainingCgdByDjbh.put(cgd.getDjbh().trim(), cgd);
+                }
             }
         }
     }
@@ -122,6 +127,10 @@ public class XsfMatchData {
             return;
         }
         remainingCgdSet.remove(cgd);
+        String djbh = normalize(cgd.getDjbh());
+        if (djbh != null) {
+            remainingCgdByDjbh.remove(djbh);
+        }
         fuzzyCacheBySpmc.clear();
         fuzzyCacheByHandledSpmc.clear();
         removeFromIndex(cgdIndexByRq, cgd.getRq(), cgd);
@@ -146,6 +155,22 @@ public class XsfMatchData {
 
     public boolean isRemainingScope(List<Cgd> scope) {
         return scope == remainingCgd;
+    }
+
+    /**
+     * 按单据编号从 remaining 池弹出并同步清理索引
+     */
+    public Cgd popRemainingCgdByDjbh(String djbh) {
+        String key = normalize(djbh);
+        if (key == null) {
+            return null;
+        }
+        Cgd cgd = remainingCgdByDjbh.get(key);
+        if (cgd == null) {
+            return null;
+        }
+        removeMatchedCgd(cgd);
+        return cgd;
     }
 
     private void ensureCgdIndexes() {

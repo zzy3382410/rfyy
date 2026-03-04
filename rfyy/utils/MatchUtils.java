@@ -420,18 +420,12 @@ public class MatchUtils {
                 .collect(Collectors.toSet());
 
         // 标记采购单
-        Iterator<Cgd> cgdIterator = xsf.getRemainingCgd().iterator();
-        while (cgdIterator.hasNext()) {
-            Cgd cgd = cgdIterator.next();
-            if (matchedDjbhs.contains(cgd.getDjbh())) {
+        for (String djbh : matchedDjbhs) {
+            Cgd cgd = xsf.popRemainingCgdByDjbh(djbh);
+            if (cgd != null) {
                 log.info("匹配成功,策略：{} - 发票: {}, 采购单: {}", strategy.getstrategy(), fpInfo, cgd.getDjbh());
-
                 cgd.markMatched(matchStatus);
                 ctx.addMatched(fp, cgd, strategy.getstrategy(), matchStatus, null);
-
-                // 从剩余池中移除，防止被后续策略或循环重复处理
-                cgdIterator.remove();
-                xsf.removeCgdFromIndexes(cgd);
             }
         }
         // 标记发票
@@ -481,18 +475,12 @@ public class MatchUtils {
                 .collect(Collectors.toSet());
 
         // 标记采购单
-        Iterator<Cgd> cgdIterator = xsf.getRemainingCgd().iterator();
-        while (cgdIterator.hasNext()) {
-            Cgd cgd = cgdIterator.next();
-            if (matchedDjbhs.contains(cgd.getDjbh())) {
+        for (String djbh : matchedDjbhs) {
+            Cgd cgd = xsf.popRemainingCgdByDjbh(djbh);
+            if (cgd != null) {
                 log.info("匹配成功,策略：{} - 发票: {}, 采购单: {}", strategy, fpInfo, cgd.getDjbh());
-
                 cgd.markMatched(matchStatus);
                 ctx.addMatched(fp, cgd, strategy, matchStatus, wcJe);
-
-                // 从剩余池中移除，防止被后续策略或循环重复处理
-                cgdIterator.remove();
-                xsf.removeCgdFromIndexes(cgd);
             }
         }
         // 标记发票

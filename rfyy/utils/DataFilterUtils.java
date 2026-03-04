@@ -260,10 +260,7 @@ public class DataFilterUtils {
         if (xsf.isRemainingScope(cgds)) {
             return new ArrayList<>(phCandidates);
         }
-
-        Set<Cgd> scopeSet = new HashSet<>(cgds);
-        phCandidates.retainAll(scopeSet);
-        return new ArrayList<>(phCandidates);
+        return retainByScope(phCandidates, cgds);
     }
 
     private static List<Cgd> candidateBySpmcIndex(Fp fp, List<Cgd> cgds, XsfMatchData xsf) {
@@ -288,9 +285,31 @@ public class DataFilterUtils {
         if (xsf.isRemainingScope(cgds)) {
             return new ArrayList<>(candidates);
         }
-        Set<Cgd> scopeSet = new HashSet<>(cgds);
-        candidates.retainAll(scopeSet);
-        return new ArrayList<>(candidates);
+        return retainByScope(candidates, cgds);
+    }
+
+    private static List<Cgd> retainByScope(Set<Cgd> candidates, List<Cgd> scope) {
+        if (candidates.isEmpty() || scope == null || scope.isEmpty()) {
+            return List.of();
+        }
+        List<Cgd> result = new ArrayList<>();
+        // 候选远小于scope：构建scope哈希集合更划算
+        if (candidates.size() * 3 < scope.size()) {
+            Set<Cgd> scopeSet = new HashSet<>(scope);
+            for (Cgd cgd : candidates) {
+                if (scopeSet.contains(cgd)) {
+                    result.add(cgd);
+                }
+            }
+            return result;
+        }
+        // 否则直接线性扫描scope，避免额外HashSet分配
+        for (Cgd cgd : scope) {
+            if (candidates.contains(cgd)) {
+                result.add(cgd);
+            }
+        }
+        return result;
     }
 
     private static List<String> splitTokens(String value) {
